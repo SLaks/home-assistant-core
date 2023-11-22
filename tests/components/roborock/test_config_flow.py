@@ -10,9 +10,18 @@ from roborock.exceptions import (
     RoborockInvalidEmail,
     RoborockUrlException,
 )
+from vacuum_map_parser_base.config.drawable import Drawable
+from vacuum_map_parser_base.config.size import Size
 
 from homeassistant import config_entries
-from homeassistant.components.roborock.const import CONF_ENTRY_CODE, DOMAIN
+from homeassistant.components.roborock.const import (
+    CONF_ENTRY_CODE,
+    CONF_INCLUDE_SHARED,
+    DOMAIN,
+    DRAWABLES,
+    MAPS,
+    SIZES,
+)
 from homeassistant.const import CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -217,3 +226,99 @@ async def test_reauth_flow(
     assert result["type"] == FlowResultType.ABORT
     assert result["reason"] == "reauth_successful"
     assert mock_roborock_entry.data["user_data"]["rriot"]["s"] == "new_password_hash"
+
+
+async def test_options_flow_domain(
+    hass: HomeAssistant, setup_entry: MockConfigEntry
+) -> None:
+    """Test that the options flow works."""
+    result = await hass.config_entries.options.async_init(setup_entry.entry_id)
+
+    assert result["type"] == FlowResultType.MENU
+    assert result["step_id"] == "init"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={"next_step_id": DOMAIN},
+    )
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == DOMAIN
+    with patch(
+        "homeassistant.components.roborock.async_setup_entry", return_value=True
+    ) as mock_setup:
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            user_input={CONF_INCLUDE_SHARED: True},
+        )
+        await hass.async_block_till_done()
+
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert setup_entry.options[CONF_INCLUDE_SHARED] is True
+    assert len(mock_setup.mock_calls) == 1
+
+
+async def test_options_flow_drawables(
+    hass: HomeAssistant, setup_entry: MockConfigEntry
+) -> None:
+    """Test that the options flow works."""
+    result = await hass.config_entries.options.async_init(setup_entry.entry_id)
+
+    assert result["type"] == FlowResultType.MENU
+    assert result["step_id"] == "init"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={"next_step_id": MAPS},
+    )
+    assert result["type"] == FlowResultType.MENU
+    assert result["step_id"] == MAPS
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={"next_step_id": DRAWABLES},
+    )
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == DRAWABLES
+    with patch(
+        "homeassistant.components.roborock.async_setup_entry", return_value=True
+    ) as mock_setup:
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            user_input={Drawable.PREDICTED_PATH: True},
+        )
+        await hass.async_block_till_done()
+
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert setup_entry.options[DRAWABLES][Drawable.PREDICTED_PATH] is True
+    assert len(mock_setup.mock_calls) == 1
+
+
+async def test_options_flow_sizes(
+    hass: HomeAssistant, setup_entry: MockConfigEntry
+) -> None:
+    """Test that the options flow works."""
+    result = await hass.config_entries.options.async_init(setup_entry.entry_id)
+
+    assert result["type"] == FlowResultType.MENU
+    assert result["step_id"] == "init"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={"next_step_id": MAPS},
+    )
+    assert result["type"] == FlowResultType.MENU
+    assert result["step_id"] == MAPS
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={"next_step_id": SIZES},
+    )
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == SIZES
+    with patch(
+        "homeassistant.components.roborock.async_setup_entry", return_value=True
+    ) as mock_setup:
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            user_input={Size.PATH_WIDTH: 3.2},
+        )
+        await hass.async_block_till_done()
+
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert setup_entry.options[SIZES][Size.PATH_WIDTH] == 3.2
+    assert len(mock_setup.mock_calls) == 1
