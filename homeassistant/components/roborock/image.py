@@ -5,7 +5,7 @@ from itertools import chain
 
 from roborock import RoborockCommand
 from vacuum_map_parser_base.config.color import ColorsPalette
-from vacuum_map_parser_base.config.image_config import ImageConfig
+from vacuum_map_parser_base.config.image_config import ImageConfig, TrimConfig
 from vacuum_map_parser_base.config.size import Sizes
 from vacuum_map_parser_roborock.map_data_parser import RoborockMapDataParser
 
@@ -18,7 +18,17 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import slugify
 import homeassistant.util.dt as dt_util
 
-from .const import DOMAIN, IMAGE_CACHE_INTERVAL, IMAGE_DRAWABLES, MAP_SLEEP
+from .const import (
+    CONF_MAP_COLOR_PALETTE,
+    CONF_MAP_CONFIG_ROOM_COLORS,
+    CONF_MAP_CONFIG_ROTATION,
+    CONF_MAP_CONFIG_TRIM,
+    CONF_MAP_SPECIFIC_CONFIG,
+    DOMAIN,
+    IMAGE_CACHE_INTERVAL,
+    IMAGE_DRAWABLES,
+    MAP_SLEEP,
+)
 from .coordinator import RoborockDataUpdateCoordinator
 from .device import RoborockCoordinatedEntity
 
@@ -36,7 +46,10 @@ async def async_setup_entry(
     entities = list(
         chain.from_iterable(
             await asyncio.gather(
-                *(create_coordinator_maps(coord) for coord in coordinators.values())
+                *(
+                    create_coordinator_maps(coord, config_entry)
+                    for coord in coordinators.values()
+                )
             )
         )
     )
@@ -55,17 +68,41 @@ class RoborockMap(RoborockCoordinatedEntity, ImageEntity):
         map_flag: int,
         starting_map: bytes,
         map_name: str,
+        config_entry: ConfigEntry,
     ) -> None:
         """Initialize a Roborock map."""
         RoborockCoordinatedEntity.__init__(self, unique_id, coordinator)
         ImageEntity.__init__(self, coordinator.hass)
         self._attr_name = map_name
+        map_specific_config = config_entry.data.get(CONF_MAP_SPECIFIC_CONFIG, {}).get(
+            map_name, {}
+        )
         self.parser = RoborockMapDataParser(
-            ColorsPalette(), Sizes(), IMAGE_DRAWABLES, ImageConfig(), []
+            ColorsPalette(
+                config_entry.data.get(CONF_MAP_COLOR_PALETTE, {}),
+                map_specific_config.get(CONF_MAP_CONFIG_ROOM_COLORS, {}),
+            ),
+            Sizes(),
+            IMAGE_DRAWABLES,
+            ImageConfig(
+                map_specific_config.get(CONF_MAP_CONFIG_ROOM_COLORS, None),
+                map_specific_config.get(CONF_MAP_CONFIG_ROTATION, None),
+                TrimConfig(*map_specific_config.get(CONF_MAP_CONFIG_TRIM, [])),
+            ),
+            [],
         )
         self._attr_image_last_updated = dt_util.utcnow()
         self.map_flag = map_flag
         self.cached_map = self._create_image(starting_map)
+        config_entry.async_on_unload(
+            config_entry.add_update_listener(self.handle_config_update)
+        )
+
+    async def handle_config_update(
+        self, hass: HomeAssistant, entry: ConfigEntry
+    ) -> None:
+        """Handle when the user changes options."""
+        await self.async_image()
 
     @property
     def entity_category(self) -> EntityCategory | None:
@@ -117,6 +154,7 @@ class RoborockMap(RoborockCoordinatedEntity, ImageEntity):
 
 async def create_coordinator_maps(
     coord: RoborockDataUpdateCoordinator,
+    config_entry: ConfigEntry,
 ) -> list[RoborockMap]:
     """Get the starting map information for all maps for this device. The following steps must be done synchronously.
 
@@ -152,6 +190,7 @@ async def create_coordinator_maps(
                     roborock_map.mapFlag,
                     api_data,
                     roborock_map.name,
+                    config_entry,
                 )
             )
         if len(maps.map_info) != 1:

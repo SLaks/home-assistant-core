@@ -7,6 +7,13 @@ DOMAIN = "roborock"
 CONF_ENTRY_CODE = "code"
 CONF_BASE_URL = "base_url"
 CONF_USER_DATA = "user_data"
+CONF_MAP_SPECIFIC_CONFIG = "map_specific_config"
+CONF_MAP_COLOR_PALETTE = "map_color_palette"
+
+CONF_MAP_CONFIG_ROOM_COLORS = "room_colors"
+CONF_MAP_CONFIG_SCALE = "scale"
+CONF_MAP_CONFIG_ROTATION = "rotation"
+CONF_MAP_CONFIG_TRIM = "trim"
 
 PLATFORMS = [
     Platform.BUTTON,
