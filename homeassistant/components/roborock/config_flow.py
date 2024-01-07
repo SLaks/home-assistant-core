@@ -263,12 +263,7 @@ class RoborockOptionsFlowHandler(config_entries.OptionsFlowWithConfigEntry):
     ) -> FlowResult:
         """Manage the map object size options."""
         if user_input is not None:
-            new_sizes = {
-                SIZES: {**self.config_entry.options.get(SIZES, {}), **user_input}
-            }
-            return self.async_create_entry(
-                title="", data={**self.config_entry.options, **new_sizes}
-            )
+            return self.update_config_entry_from_user_input(SIZES, user_input)
         data_schema = {}
         for size, default_value in DEFAULT_SIZES.items():
             data_schema[
@@ -289,15 +284,7 @@ class RoborockOptionsFlowHandler(config_entries.OptionsFlowWithConfigEntry):
     ) -> FlowResult:
         """Manage the map object drawable options."""
         if user_input is not None:
-            new_drawables = {
-                DRAWABLES: {
-                    **self.config_entry.options.get(DRAWABLES, {}),
-                    **user_input,
-                }
-            }
-            return self.async_create_entry(
-                title="", data={**self.config_entry.options, **new_drawables}
-            )
+            return self.update_config_entry_from_user_input(DRAWABLES, user_input)
         data_schema = {}
         for drawable, default_value in DEFAULT_DRAWABLES.items():
             data_schema[
@@ -311,4 +298,20 @@ class RoborockOptionsFlowHandler(config_entries.OptionsFlowWithConfigEntry):
         return self.async_show_form(
             step_id=DRAWABLES,
             data_schema=vol.Schema(data_schema),
+        )
+
+    def update_config_entry_from_user_input(
+        self,
+        key: str,
+        user_input: Mapping[str, Any],
+    ) -> FlowResult:
+        """Update an existing dict in the config entry from user input."""
+        new_config = {
+            key: {
+                **self.config_entry.options.get(key, {}),
+                **user_input,
+            }
+        }
+        return self.async_create_entry(
+            title="", data={**self.config_entry.options, **new_config}
         )
