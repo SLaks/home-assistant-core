@@ -16,6 +16,8 @@ DEFAULT_INCLUDE_SHARED = True
 # Option Flow steps
 SIZES = "sizes"
 DRAWABLES = "drawables"
+DEVICE_PREFIX = "robot_"
+DEVICE_LIST = "device_list"
 MAPS = "maps"
 
 DEFAULT_DRAWABLES = {

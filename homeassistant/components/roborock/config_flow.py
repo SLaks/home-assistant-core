@@ -30,11 +30,13 @@ from .const import (
     DEFAULT_DRAWABLES,
     DEFAULT_INCLUDE_SHARED,
     DEFAULT_SIZES,
+    DEVICE_LIST,
     DOMAIN,
     DRAWABLES,
     MAPS,
     SIZES,
 )
+from .coordinator import RoborockDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -176,11 +178,57 @@ class RoborockFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 class RoborockOptionsFlowHandler(config_entries.OptionsFlowWithConfigEntry):
     """Handle an option flow for Roborock."""
 
+    selected_device: RoborockDataUpdateCoordinator | None = None
+    devices: dict[str, RoborockDataUpdateCoordinator] = {}
+
+    def populate_dynamic_steps(self):
+        """Create handler methods for dynamic steps for devices and maps."""
+        self.devices = self.hass.data[DOMAIN][self.config_entry.entry_id]
+        for duid, coord in self.devices.items():
+
+            def step_handler(user_input: dict[str, Any] | None = None, device=coord):
+                """Select a device from the device list and show its next menu."""
+                nonlocal coord
+                # Set the current device so future steps can look it up.
+                self.selected_device = device
+                # Return the (hard-coded) submenu, with this device selected.
+                return self.async_step_device_menu()
+
+            setattr(self, "async_step_device_" + duid, step_handler)
+
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Manage the options."""
-        return self.async_show_menu(step_id="init", menu_options=[DOMAIN, MAPS])
+        """Show the initial menu."""
+        self.populate_dynamic_steps()
+
+        return self.async_show_menu(
+            step_id="init", menu_options=[DOMAIN, MAPS, DEVICE_LIST]
+        )
+
+    async def async_step_device_list(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Show a list of devices to select a device-specific submenu."""
+        return self.async_show_menu(
+            step_id=DEVICE_LIST,
+            menu_options={
+                "device_" + duid: coord.roborock_device_info.device.name
+                for duid, coord in self.devices.items()
+            },
+        )
+
+    async def async_step_device_menu(self) -> FlowResult:
+        """Create a menu of options for the selected device."""
+        if self.selected_device is None:
+            return self.async_abort(reason="no_device_selected")
+        return self.async_show_menu(
+            step_id="device_menu",
+            menu_options=["TODO"],
+            description_placeholders={
+                "device_name": self.selected_device.roborock_device_info.device.name
+            },
+        )
 
     async def async_step_roborock(
         self, user_input: dict[str, Any] | None = None

@@ -37,6 +37,7 @@
         "description": "Configure Roborock options.",
         "menu_options": {
           "roborock": "Roborock",
+          "device_list": "Device-specific options",
           "maps": "Maps"
         }
       },
@@ -86,6 +87,19 @@
           "vacuum_position": "Vacuum position",
           "virtual_walls": "Virtual walls",
           "zones": "Zones"
+        }
+      },
+      "device_list": {
+        "description": "Select a Roborock device to configure options for that device only."
+      },
+      "device_menu": {
+        "description": "Select a saved map on {device_name} to set options."
+      },
+      "map_menu": {
+        "description": "Select options for the {map} map on {device_name}.",
+        "menu_options": {
+          "image_config": "Image options",
+          "colors": "Colors"
         }
       }
     }
