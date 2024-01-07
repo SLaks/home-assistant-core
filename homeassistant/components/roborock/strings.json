@@ -41,20 +41,20 @@
         }
       },
       "roborock": {
-        "description": "Configure setting options for all Roborock devices.",
+        "description": "Configure options for including Roborock devices.",
         "data": {
           "include_shared": "Include shared devices"
         }
       },
       "maps": {
-        "description": "Configure setting options for all of your Roborock map's images.",
+        "description": "Configure how to draw maps for all Roborock devices.",
         "menu_options": {
           "drawables": "Items to draw",
           "sizes": "Sizes"
         }
       },
       "sizes": {
-        "description": "Configure setting options for all of your Roborock maps' sizes.",
+        "description": "Configure sizes for specific map features for all Roborock devices.",
         "data": {
           "charger_radius": "Charger radius",
           "ignored_obstacle_radius": "Ignored obstacle radius",
