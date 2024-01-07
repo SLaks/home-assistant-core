@@ -92,15 +92,37 @@
       "device_list": {
         "description": "Select a Roborock device to configure options for that device only."
       },
-      "device_menu": {
+      "device_map_list": {
         "description": "Select a saved map on {device_name} to set options."
       },
-      "map_menu": {
-        "description": "Select options for the {map} map on {device_name}.",
+      "device_map_options": {
+        "description": "Select options for the {map_name} map on {device_name}.",
         "menu_options": {
-          "image_config": "Image options",
-          "colors": "Colors"
+          "image_config": "Map size options",
+          "room_colors": "Colors"
         }
+      },
+      "image_config": {
+        "description": "Configure the size and rotation for the {map_name} map on {device_name}.",
+        "data": {
+          "scale": "Scale factor",
+          "rotate": "Rotation",
+          "trim_left": "Left crop percentage",
+          "trim_right": "Right crop percentage",
+          "trim_top": "Top crop percentage",
+          "trim_bottom": "Bottom crop percentage"
+        },
+        "data_description": {
+          "scale": "Scale factor to make the map larger or smaller.  Use 1 to draw at original size.",
+          "rotate": "Rotation in degrees counterclockwise to rotate the entire map image",
+          "trim_left": "Percentage of the map's left (before rotation) side to crop",
+          "trim_right": "Percentage of the map's right (before rotation) side to crop",
+          "trim_top": "Percentage of the map's top (before rotation) side to crop",
+          "trim_bottom": "Percentage of the map's bottom (before rotation) side to crop"
+        }
+      },
+      "room_colors": {
+        "description": "Configure the colors to use for rooms in the {map_name} map on {device_name}."
       }
     }
   },

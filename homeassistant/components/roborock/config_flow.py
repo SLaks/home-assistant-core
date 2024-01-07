@@ -26,14 +26,24 @@ from .const import (
     CONF_BASE_URL,
     CONF_ENTRY_CODE,
     CONF_INCLUDE_SHARED,
+    CONF_ROTATE,
+    CONF_SCALE,
+    CONF_TRIM_BOTTOM,
+    CONF_TRIM_LEFT,
+    CONF_TRIM_RIGHT,
+    CONF_TRIM_TOP,
     CONF_USER_DATA,
     DEFAULT_DRAWABLES,
     DEFAULT_INCLUDE_SHARED,
     DEFAULT_SIZES,
     DEVICE_LIST,
+    DEVICE_MAP_LIST,
+    DEVICE_MAP_OPTIONS,
     DOMAIN,
     DRAWABLES,
+    IMAGE_CONFIG,
     MAPS,
+    ROOM_COLORS,
     SIZES,
 )
 from .coordinator import RoborockDataUpdateCoordinator
@@ -175,26 +185,84 @@ class RoborockFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         return RoborockOptionsFlowHandler(config_entry)
 
 
+IMAGE_CONFIG_SCHEMA = vol.Schema(
+    {
+        vol.Optional(CONF_SCALE, default=1.0): vol.Coerce(float),
+        vol.Optional(CONF_ROTATE, default=0): vol.In(
+            [
+                0,
+                90,
+                180,
+                270,
+            ]
+        ),
+        vol.Optional(CONF_TRIM_LEFT): vol.Coerce(float),
+        vol.Optional(CONF_TRIM_RIGHT): vol.Coerce(float),
+        vol.Optional(CONF_TRIM_TOP): vol.Coerce(float),
+        vol.Optional(CONF_TRIM_BOTTOM): vol.Coerce(float),
+    }
+)
+
+
 class RoborockOptionsFlowHandler(config_entries.OptionsFlowWithConfigEntry):
     """Handle an option flow for Roborock."""
 
-    selected_device: RoborockDataUpdateCoordinator | None = None
     devices: dict[str, RoborockDataUpdateCoordinator] = {}
+    selected_device: RoborockDataUpdateCoordinator | None = None
+    selected_map: int | None = None
+
+    def get_placeholders(self):
+        """Return translation placeholders for the selected map & device."""
+        if self.selected_device is None or self.selected_map is None:
+            raise ValueError("No map selected")
+        return {
+            "device_name": self.selected_device.roborock_device_info.device.name,
+            "map_name": self.selected_device.maps[self.selected_map],
+        }
+
+    def get_selected_options_key(self, config_step: str):
+        """Return the options dict for the selected map & device."""
+        if self.selected_device is None or self.selected_map is None:
+            raise ValueError("No map selected")
+        return self.selected_device.get_config_entry_key_for_map(
+            self.selected_map, config_step
+        )
 
     def populate_dynamic_steps(self):
         """Create handler methods for dynamic steps for devices and maps."""
         self.devices = self.hass.data[DOMAIN][self.config_entry.entry_id]
         for duid, coord in self.devices.items():
 
-            def step_handler(user_input: dict[str, Any] | None = None, device=coord):
+            def device_step_handler(
+                user_input: dict[str, Any] | None = None, device=coord
+            ):
                 """Select a device from the device list and show its next menu."""
                 nonlocal coord
                 # Set the current device so future steps can look it up.
                 self.selected_device = device
                 # Return the (hard-coded) submenu, with this device selected.
-                return self.async_step_device_menu()
+                return self.async_step_device_map_list()
 
-            setattr(self, "async_step_device_" + duid, step_handler)
+            # Create the dynamic callback for the device-specific menu entry.
+            setattr(self, f"async_step_device_map_list_{duid}", device_step_handler)
+
+            for map_id in coord.maps:
+
+                def map_step_handler(
+                    user_input: dict[str, Any] | None = None, map_id=map_id
+                ):
+                    """Select a map from the map list and show its next menu."""
+                    # Set the current map so future steps can look it up.
+                    self.selected_map = map_id
+                    # Return the (hard-coded) submenu, with this map selected.
+                    return self.async_step_device_map_options()
+
+                # Create the dynamic callback for the map-specific menu entry.
+                setattr(
+                    self,
+                    f"async_step_device_map_options_{map_id}",
+                    map_step_handler,
+                )
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -210,24 +278,80 @@ class RoborockOptionsFlowHandler(config_entries.OptionsFlowWithConfigEntry):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Show a list of devices to select a device-specific submenu."""
+        if len(self.devices) == 1:
+            # If there is only one device, skip this submenu.
+            self.selected_device = list(self.devices.values())[0]
+            return await self.async_step_device_map_list()
         return self.async_show_menu(
             step_id=DEVICE_LIST,
+            # Generate a dict of options with dynamic names (that cannot involve translations).
+            # These point to dynamic step handlers that store the selected device.
+            # Future steps look up the selected device from our instance and are not otherwise dynamic.
             menu_options={
-                "device_" + duid: coord.roborock_device_info.device.name
+                f"device_map_list_{duid}": coord.roborock_device_info.device.name
                 for duid, coord in self.devices.items()
             },
         )
 
-    async def async_step_device_menu(self) -> FlowResult:
-        """Create a menu of options for the selected device."""
+    async def async_step_device_map_list(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Show a list of maps on the selected device.
+
+        This is used as the result for the dynamic callbacks above that select the device.
+        """
         if self.selected_device is None:
             return self.async_abort(reason="no_device_selected")
+        if len(self.selected_device.maps) == 1:
+            # If there is only one device, skip this submenu.
+            self.selected_map = list(self.selected_device.maps.keys())[0]
+            return await self.async_step_device_map_options()
         return self.async_show_menu(
-            step_id="device_menu",
-            menu_options=["TODO"],
-            description_placeholders={
-                "device_name": self.selected_device.roborock_device_info.device.name
+            # Use our fixed (non-dynamic) name for translations, and so that the data flow system recognizes it.
+            step_id=DEVICE_MAP_LIST,
+            # Generate a dict of options with dynamic names (that cannot involve translations).
+            # These point to dynamic step handlers that store the selected device.
+            # Future steps look up the selected device from our instance and are not otherwise dynamic.
+            menu_options={
+                f"device_map_options_{id}": name
+                for id, name in self.selected_device.maps.items()
             },
+            # Populate the selected device name for the subtitle.
+            description_placeholders={
+                "device_name": self.selected_device.roborock_device_info.device.name,
+            },
+        )
+
+    async def async_step_device_map_options(self) -> FlowResult:
+        """Create a menu of options for the selected map.
+
+        This is used as the result for the dynamic callbacks above that select the map.
+        """
+        if self.selected_device is None or self.selected_map is None:
+            return self.async_abort(reason="no_map_selected")
+        return self.async_show_menu(
+            # Use our fixed (non-dynamic) name for translations, and so that the data flow system recognizes it.
+            step_id=DEVICE_MAP_OPTIONS,
+            menu_options=[IMAGE_CONFIG, ROOM_COLORS],
+            description_placeholders=self.get_placeholders(),
+        )
+
+    async def async_step_image_config(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Manage the map object size options."""
+        key = self.get_selected_options_key(IMAGE_CONFIG)
+        current_config = self.config_entry.options.get(key, {})
+
+        if user_input is not None:
+            return self.update_config_entry_from_user_input(key, user_input)
+
+        return self.async_show_form(
+            step_id=IMAGE_CONFIG,
+            data_schema=self.add_suggested_values_to_schema(
+                IMAGE_CONFIG_SCHEMA, current_config
+            ),
+            description_placeholders=self.get_placeholders(),
         )
 
     async def async_step_roborock(

@@ -62,6 +62,10 @@ class RoborockDataUpdateCoordinator(DataUpdateCoordinator[DeviceProp]):
         # Maps from map flag to map name
         self.maps: dict[int, str] = {}
 
+    def get_config_entry_key_for_map(self, map_flag: int, config_step: str) -> str:
+        """Get the config entry key for a map."""
+        return f"device.{self.roborock_device_info.device.duid}.map.{map_flag}.{config_step}"
+
     async def verify_api(self) -> None:
         """Verify that the api is reachable. If it is not, switch clients."""
         if isinstance(self.api, RoborockLocalClient):

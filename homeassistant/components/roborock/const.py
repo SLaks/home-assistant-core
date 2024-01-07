@@ -18,6 +18,10 @@ SIZES = "sizes"
 DRAWABLES = "drawables"
 DEVICE_PREFIX = "robot_"
 DEVICE_LIST = "device_list"
+DEVICE_MAP_LIST = "device_map_list"
+DEVICE_MAP_OPTIONS = "device_map_options"
+IMAGE_CONFIG = "image_config"
+ROOM_COLORS = "room_colors"
 MAPS = "maps"
 
 DEFAULT_DRAWABLES = {
@@ -60,6 +64,14 @@ PLATFORMS = [
     Platform.TIME,
     Platform.VACUUM,
 ]
+
+# Map-specific options:
+CONF_SCALE = "scale"
+CONF_ROTATE = "rotate"
+CONF_TRIM_LEFT = "trim_left"
+CONF_TRIM_RIGHT = "trim_right"
+CONF_TRIM_TOP = "trim_top"
+CONF_TRIM_BOTTOM = "trim_bottom"
 
 
 IMAGE_CACHE_INTERVAL = 90
