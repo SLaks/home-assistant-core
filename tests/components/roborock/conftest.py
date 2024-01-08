@@ -26,16 +26,32 @@ from .mock_data import (
 from tests.common import MockConfigEntry
 
 
+def pytest_configure(config):
+    """Register custom markers for pytest."""
+    config.addinivalue_line(
+        "markers", "home_data: Custom return value for get_home_data"
+    )
+    config.addinivalue_line(
+        "markers", "multi_map_list: Custom return value for get_multi_maps_list"
+    )
+
+
 @pytest.fixture(name="bypass_api_fixture")
-def bypass_api_fixture() -> None:
+def bypass_api_fixture(request: pytest.FixtureRequest) -> None:
     """Skip calls to the API."""
+    home_data = request.node.get_closest_marker(
+        "home_data", pytest.mark.home_data(HOME_DATA)
+    ).args[0]
+    multi_map_list = request.node.get_closest_marker(
+        "multi_map_list", pytest.mark.multi_map_list(MULTI_MAP_LIST)
+    ).args[0]
     with patch(
         "homeassistant.components.roborock.RoborockMqttClient.async_connect"
     ), patch(
         "homeassistant.components.roborock.RoborockMqttClient._send_command"
     ), patch(
         "homeassistant.components.roborock.RoborockApiClient.get_home_data",
-        return_value=HOME_DATA,
+        return_value=home_data,
     ), patch(
         "homeassistant.components.roborock.RoborockMqttClient.get_networking",
         return_value=NETWORK_INFO,
@@ -44,10 +60,10 @@ def bypass_api_fixture() -> None:
         return_value=PROP,
     ), patch(
         "homeassistant.components.roborock.coordinator.RoborockMqttClient.get_multi_maps_list",
-        return_value=MULTI_MAP_LIST,
+        return_value=multi_map_list,
     ), patch(
         "homeassistant.components.roborock.coordinator.RoborockLocalClient.get_multi_maps_list",
-        return_value=MULTI_MAP_LIST,
+        return_value=multi_map_list,
     ), patch(
         "homeassistant.components.roborock.image.RoborockMapDataParser.parse",
         return_value=MAP_DATA,

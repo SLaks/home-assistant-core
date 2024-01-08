@@ -1,5 +1,6 @@
 """Test Roborock config flow."""
 from copy import deepcopy
+import dataclasses
 from unittest.mock import patch
 
 import pytest
@@ -17,8 +18,13 @@ from homeassistant import config_entries
 from homeassistant.components.roborock.const import (
     CONF_ENTRY_CODE,
     CONF_INCLUDE_SHARED,
+    CONF_ROTATE,
+    DEVICE_LIST,
+    DEVICE_MAP_LIST,
+    DEVICE_MAP_OPTIONS,
     DOMAIN,
     DRAWABLES,
+    IMAGE_CONFIG,
     MAPS,
     SIZES,
 )
@@ -26,7 +32,7 @@ from homeassistant.const import CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
-from .mock_data import MOCK_CONFIG, USER_DATA, USER_EMAIL
+from .mock_data import HOME_DATA, MOCK_CONFIG, MULTI_MAP_LIST, USER_DATA, USER_EMAIL
 
 from tests.common import MockConfigEntry
 
@@ -322,4 +328,179 @@ async def test_options_flow_sizes(
 
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert setup_entry.options[SIZES][Size.PATH_WIDTH] == 3.2
+    assert len(mock_setup.mock_calls) == 1
+
+
+SINGLE_MAP_LIST = dataclasses.replace(
+    MULTI_MAP_LIST, map_info=[MULTI_MAP_LIST.map_info[0]]
+)
+SINGLE_DEVICE_DATA = dataclasses.replace(HOME_DATA, devices=[HOME_DATA.devices[0]])
+
+
+@pytest.mark.home_data(SINGLE_DEVICE_DATA)
+@pytest.mark.multi_map_list(SINGLE_MAP_LIST)
+async def test_options_flow_one_device_one_map(
+    hass: HomeAssistant, setup_entry: MockConfigEntry
+) -> None:
+    """Test that the options flow skips the map and device submenus."""
+    result = await hass.config_entries.options.async_init(setup_entry.entry_id)
+
+    assert result["type"] == FlowResultType.MENU
+    assert result["step_id"] == "init"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={"next_step_id": DEVICE_LIST},
+    )
+    assert result["type"] == FlowResultType.MENU
+    assert result["step_id"] == DEVICE_MAP_OPTIONS
+    assert result["description_placeholders"] == {
+        "device_name": "Roborock S7 MaxV",
+        "map_name": "Upstairs",
+    }
+
+
+@pytest.mark.multi_map_list(SINGLE_MAP_LIST)
+async def test_options_flow_two_devices_one_map(
+    hass: HomeAssistant, setup_entry: MockConfigEntry
+) -> None:
+    """Test that the options flow skips the map submenu."""
+    result = await hass.config_entries.options.async_init(setup_entry.entry_id)
+
+    assert result["type"] == FlowResultType.MENU
+    assert result["step_id"] == "init"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={"next_step_id": DEVICE_LIST},
+    )
+
+    assert result["type"] == FlowResultType.MENU
+    assert result["step_id"] == DEVICE_LIST
+    assert result["menu_options"] == {
+        "device_map_list_abc123": "Roborock S7 MaxV",
+        "device_map_list_device_2": "Roborock S7 2",
+    }
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={"next_step_id": "device_map_list_device_2"},
+    )
+    assert result["type"] == FlowResultType.MENU
+    assert result["step_id"] == DEVICE_MAP_OPTIONS
+    assert result["description_placeholders"] == {
+        "device_name": "Roborock S7 2",
+        "map_name": "Upstairs",
+    }
+
+
+@pytest.mark.home_data(SINGLE_DEVICE_DATA)
+async def test_options_flow_one_device_two_maps(
+    hass: HomeAssistant, setup_entry: MockConfigEntry
+) -> None:
+    """Test that the options flow skips the device submenu."""
+    result = await hass.config_entries.options.async_init(setup_entry.entry_id)
+
+    assert result["type"] == FlowResultType.MENU
+    assert result["step_id"] == "init"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={"next_step_id": DEVICE_LIST},
+    )
+
+    assert result["type"] == FlowResultType.MENU
+    assert result["step_id"] == DEVICE_MAP_LIST
+    assert result["description_placeholders"] == {
+        "device_name": "Roborock S7 MaxV",
+    }
+    assert result["menu_options"] == {
+        "device_map_options_0": "Upstairs",
+        "device_map_options_1": "Downstairs",
+    }
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={"next_step_id": "device_map_options_1"},
+    )
+    assert result["type"] == FlowResultType.MENU
+    assert result["step_id"] == DEVICE_MAP_OPTIONS
+    assert result["description_placeholders"] == {
+        "device_name": "Roborock S7 MaxV",
+        "map_name": "Downstairs",
+    }
+
+
+async def test_options_flow_two_devices_two_maps(
+    hass: HomeAssistant, setup_entry: MockConfigEntry
+) -> None:
+    """Test that the options flow shows the device and map submenus."""
+    result = await hass.config_entries.options.async_init(setup_entry.entry_id)
+
+    assert result["type"] == FlowResultType.MENU
+    assert result["step_id"] == "init"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={"next_step_id": DEVICE_LIST},
+    )
+
+    assert result["type"] == FlowResultType.MENU
+    assert result["step_id"] == DEVICE_LIST
+    assert result["menu_options"] == {
+        "device_map_list_abc123": "Roborock S7 MaxV",
+        "device_map_list_device_2": "Roborock S7 2",
+    }
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={"next_step_id": "device_map_list_device_2"},
+    )
+    assert result["type"] == FlowResultType.MENU
+    assert result["step_id"] == DEVICE_MAP_LIST
+    assert result["description_placeholders"] == {
+        "device_name": "Roborock S7 2",
+    }
+    assert result["menu_options"] == {
+        "device_map_options_0": "Upstairs",
+        "device_map_options_1": "Downstairs",
+    }
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={"next_step_id": "device_map_options_1"},
+    )
+    assert result["type"] == FlowResultType.MENU
+    assert result["step_id"] == DEVICE_MAP_OPTIONS
+    assert result["description_placeholders"] == {
+        "device_name": "Roborock S7 2",
+        "map_name": "Downstairs",
+    }
+
+
+@pytest.mark.home_data(SINGLE_DEVICE_DATA)  # Skip menu steps
+@pytest.mark.multi_map_list(SINGLE_MAP_LIST)
+async def test_options_flow_image_config(
+    hass: HomeAssistant, setup_entry: MockConfigEntry
+) -> None:
+    """Test that the options flow saves image config."""
+    result = await hass.config_entries.options.async_init(setup_entry.entry_id)
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={"next_step_id": DEVICE_LIST},
+    )
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={"next_step_id": IMAGE_CONFIG},
+    )
+    assert result["type"] == FlowResultType.FORM
+    with patch(
+        "homeassistant.components.roborock.async_setup_entry", return_value=True
+    ) as mock_setup:
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            user_input={CONF_ROTATE: 270},
+        )
+        await hass.async_block_till_done()
+
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert setup_entry.options["device.abc123.map.0.image_config"][CONF_ROTATE] == 270
     assert len(mock_setup.mock_calls) == 1
