@@ -2,11 +2,12 @@
 import asyncio
 import io
 from itertools import chain
+from typing import Any
 
 from roborock import RoborockCommand
 from vacuum_map_parser_base.config.color import ColorsPalette
 from vacuum_map_parser_base.config.drawable import Drawable
-from vacuum_map_parser_base.config.image_config import ImageConfig
+from vacuum_map_parser_base.config.image_config import ImageConfig, TrimConfig
 from vacuum_map_parser_base.config.size import Sizes
 from vacuum_map_parser_roborock.map_data_parser import RoborockMapDataParser
 
@@ -20,11 +21,18 @@ from homeassistant.util import slugify
 import homeassistant.util.dt as dt_util
 
 from .const import (
+    CONF_ROTATE,
+    CONF_SCALE,
+    CONF_TRIM_BOTTOM,
+    CONF_TRIM_LEFT,
+    CONF_TRIM_RIGHT,
+    CONF_TRIM_TOP,
     DEFAULT_DRAWABLES,
     DEFAULT_SIZES,
     DOMAIN,
     DRAWABLES,
     IMAGE_CACHE_INTERVAL,
+    IMAGE_CONFIG,
     MAP_SLEEP,
     SIZES,
 )
@@ -52,7 +60,7 @@ async def async_setup_entry(
         chain.from_iterable(
             await asyncio.gather(
                 *(
-                    create_coordinator_maps(coord, sizes, drawables)
+                    create_coordinator_maps(coord, sizes, drawables, config_entry)
                     for coord in coordinators.values()
                 )
             )
@@ -75,13 +83,14 @@ class RoborockMap(RoborockCoordinatedEntity, ImageEntity):
         map_name: str,
         sizes: Sizes,
         drawables: list[Drawable],
+        image_config: ImageConfig,
     ) -> None:
         """Initialize a Roborock map."""
         RoborockCoordinatedEntity.__init__(self, unique_id, coordinator)
         ImageEntity.__init__(self, coordinator.hass)
         self._attr_name = map_name
         self.parser = RoborockMapDataParser(
-            ColorsPalette(), sizes, drawables, ImageConfig(), []
+            ColorsPalette(), sizes, drawables, image_config, []
         )
         self._attr_image_last_updated = dt_util.utcnow()
         self.map_flag = map_flag
@@ -134,7 +143,10 @@ class RoborockMap(RoborockCoordinatedEntity, ImageEntity):
 
 
 async def create_coordinator_maps(
-    coord: RoborockDataUpdateCoordinator, sizes: Sizes, drawables: list[Drawable]
+    coord: RoborockDataUpdateCoordinator,
+    sizes: Sizes,
+    drawables: list[Drawable],
+    config_entry: ConfigEntry,
 ) -> list[RoborockMap]:
     """Get the starting map information for all maps for this device. The following steps must be done synchronously.
 
@@ -160,6 +172,21 @@ async def create_coordinator_maps(
             await asyncio.sleep(MAP_SLEEP)
         # Get the map data
         api_data: bytes = await coord.cloud_api.get_map_v1()
+
+        image_config_data: dict[str, Any] = config_entry.options.get(
+            coord.get_config_entry_key_for_map(map_flag, IMAGE_CONFIG), {}
+        )
+        image_config = ImageConfig(
+            scale=image_config_data.get(CONF_SCALE, 1),
+            rotate=image_config_data.get(CONF_ROTATE, 0),
+            trim=TrimConfig(
+                left=image_config_data.get(CONF_TRIM_LEFT, 0),
+                right=image_config_data.get(CONF_TRIM_RIGHT, 0),
+                top=image_config_data.get(CONF_TRIM_TOP, 0),
+                bottom=image_config_data.get(CONF_TRIM_BOTTOM, 0),
+            ),
+        )
+
         entities.append(
             RoborockMap(
                 f"{slugify(coord.roborock_device_info.device.duid)}_map_{map_name}",
@@ -169,6 +196,7 @@ async def create_coordinator_maps(
                 map_name,
                 sizes,
                 drawables,
+                image_config,
             )
         )
     if len(coord.maps) != 1:
