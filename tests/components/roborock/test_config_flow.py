@@ -11,6 +11,7 @@ from roborock.exceptions import (
     RoborockInvalidEmail,
     RoborockUrlException,
 )
+from vacuum_map_parser_base.config.color import ColorsPalette, SupportedColor
 from vacuum_map_parser_base.config.drawable import Drawable
 from vacuum_map_parser_base.config.size import Size
 
@@ -23,6 +24,7 @@ from homeassistant.components.roborock.const import (
     DEVICE_MAP_LIST,
     DEVICE_MAP_OPTIONS,
     DOMAIN,
+    DRAWABLE_COLORS,
     DRAWABLES,
     IMAGE_CONFIG,
     MAPS,
@@ -294,6 +296,72 @@ async def test_options_flow_drawables(
 
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert setup_entry.options[DRAWABLES][Drawable.PREDICTED_PATH] is True
+    assert len(mock_setup.mock_calls) == 1
+
+
+async def test_options_flow_drawable_colors(
+    hass: HomeAssistant, setup_entry: MockConfigEntry
+) -> None:
+    """Test that the options flow works."""
+    result = await hass.config_entries.options.async_init(setup_entry.entry_id)
+
+    assert result["type"] == FlowResultType.MENU
+    assert result["step_id"] == "init"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={"next_step_id": MAPS},
+    )
+    assert result["type"] == FlowResultType.MENU
+    assert result["step_id"] == MAPS
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={"next_step_id": DRAWABLE_COLORS},
+    )
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == DRAWABLE_COLORS
+
+    form_values = {v.schema: v.default() for v in result["data_schema"].schema}
+    # Apply defaults from ColorPalette
+    assert form_values[SupportedColor.MAP_INSIDE] == [32, 115, 185]
+    # Drop the alpha value
+    assert form_values[SupportedColor.CHARGER] == [0x66, 0xFE, 0xDA]
+
+    # Hide colors for drawables & their outlines if they're disabled by default.
+    assert SupportedColor.IGNORED_OBSTACLE not in form_values
+    assert SupportedColor.NO_GO_ZONES_OUTLINE not in form_values
+    assert SupportedColor.NO_MOPPING_ZONES not in form_values
+
+    with patch(
+        "homeassistant.components.roborock.async_setup_entry", return_value=True
+    ) as mock_setup:
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            user_input={
+                SupportedColor.MAP_INSIDE: [255, 0, 0],
+                SupportedColor.CHARGER: [0, 255, 0],
+            },
+        )
+        await hass.async_block_till_done()
+
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert setup_entry.options[DRAWABLE_COLORS][SupportedColor.MAP_INSIDE] == (
+        255,
+        0,
+        0,
+    )
+    # Re-apply alpha to edited color
+    assert setup_entry.options[DRAWABLE_COLORS][SupportedColor.CHARGER] == (
+        0,
+        255,
+        0,
+        0x7F,
+    )
+    # Preserve unchanged values, with alpha.
+    assert (
+        setup_entry.options[DRAWABLE_COLORS][SupportedColor.CHARGER_OUTLINE]
+        == ColorsPalette().COLORS[SupportedColor.CHARGER_OUTLINE]
+    )
+
     assert len(mock_setup.mock_calls) == 1
 
 

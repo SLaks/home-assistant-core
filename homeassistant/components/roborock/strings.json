@@ -51,7 +51,8 @@
         "description": "Configure how to draw maps for all Roborock devices.",
         "menu_options": {
           "drawables": "Items to draw",
-          "sizes": "Sizes"
+          "drawable_colors": "Colors for items to draw",
+          "sizes": "Sizes for items to draw"
         }
       },
       "sizes": {
@@ -76,9 +77,9 @@
           "ignored_obstacles": "Ignored obstacles",
           "ignored_obstacles_with_photo": "Ignored obstacles with photo",
           "mop_path": "Mop path",
-          "no_carpet_zones": "No carpet zones",
+          "no_carpet_zones": "No-carpet zones",
           "no_go_zones": "No-go zones",
-          "no_mopping_zones": "No mopping zones",
+          "no_mopping_zones": "No-mop zones",
           "obstacles": "Obstacles",
           "obstacles_with_photo": "Obstacles with photo",
           "path": "Path",
@@ -87,6 +88,42 @@
           "vacuum_position": "Vacuum position",
           "virtual_walls": "Virtual walls",
           "zones": "Zones"
+        }
+      },
+      "drawable_colors": {
+        "description": "Specify colors for map features.  Room colors are configured separately for each device and map.",
+        "data": {
+          "color_map_inside": "Inside of Map",
+          "color_map_outside": "Outside of Map",
+          "color_map_wall": "Map Wall",
+          "color_map_wall_v2": "Map Wall V2",
+          "color_grey_wall": "Grey Wall",
+          "color_cleaned_area": "Cleaned Area",
+          "color_path": "Path",
+          "color_goto_path": "Goto Path",
+          "color_predicted_path": "Predicted Path",
+          "color_zones": "Zones",
+          "color_zones_outline": "Zones Outline",
+          "color_virtual_walls": "Virtual Walls",
+          "color_new_discovered_area": "New Discovered Area",
+          "color_carpets": "Carpets",
+          "color_no_carpet_zones": "No-carpet zones",
+          "color_no_carpet_zones_outline": "No-carpet zones outline",
+          "color_no_go_zones": "No-go zones",
+          "color_no_go_zones_outline": "No-go zones outline",
+          "color_no_mop_zones": "No-mop zones",
+          "color_no_mop_zones_outline": "No-mop zones outline",
+          "color_charger": "Charger",
+          "color_charger_outline": "Charger Outline",
+          "color_robo": "Robot",
+          "color_robo_outline": "Robot Outline",
+          "color_room_names": "Room Names",
+          "color_obstacle": "Obstacle",
+          "color_ignored_obstacle": "Ignored Obstacle",
+          "color_obstacle_with_photo": "Obstacle With Photo",
+          "color_ignored_obstacle_with_photo": "Ignored Obstacle With Photo",
+          "color_unknown": "Unknown",
+          "color_scan": "Scan"
         }
       },
       "device_list": {

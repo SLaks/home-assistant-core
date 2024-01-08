@@ -30,6 +30,7 @@ from .const import (
     DEFAULT_DRAWABLES,
     DEFAULT_SIZES,
     DOMAIN,
+    DRAWABLE_COLORS,
     DRAWABLES,
     IMAGE_CACHE_INTERVAL,
     IMAGE_CONFIG,
@@ -81,6 +82,7 @@ class RoborockMap(RoborockCoordinatedEntity, ImageEntity):
         map_flag: int,
         starting_map: bytes,
         map_name: str,
+        colors: ColorsPalette,
         sizes: Sizes,
         drawables: list[Drawable],
         image_config: ImageConfig,
@@ -89,9 +91,7 @@ class RoborockMap(RoborockCoordinatedEntity, ImageEntity):
         RoborockCoordinatedEntity.__init__(self, unique_id, coordinator)
         ImageEntity.__init__(self, coordinator.hass)
         self._attr_name = map_name
-        self.parser = RoborockMapDataParser(
-            ColorsPalette(), sizes, drawables, image_config, []
-        )
+        self.parser = RoborockMapDataParser(colors, sizes, drawables, image_config, [])
         self._attr_image_last_updated = dt_util.utcnow()
         self.map_flag = map_flag
         self.cached_map = self._create_image(starting_map)
@@ -187,6 +187,13 @@ async def create_coordinator_maps(
             ),
         )
 
+        colors = ColorsPalette(
+            colors_dict={
+                **ColorsPalette().COLORS,
+                **config_entry.options.get(DRAWABLE_COLORS, {}),
+            }
+        )
+
         entities.append(
             RoborockMap(
                 f"{slugify(coord.roborock_device_info.device.duid)}_map_{map_name}",
@@ -194,6 +201,7 @@ async def create_coordinator_maps(
                 map_flag,
                 api_data,
                 map_name,
+                colors,
                 sizes,
                 drawables,
                 image_config,

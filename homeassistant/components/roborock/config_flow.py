@@ -14,6 +14,7 @@ from roborock.exceptions import (
     RoborockUrlException,
 )
 from roborock.web_api import RoborockApiClient
+from vacuum_map_parser_base.config.color import ColorsPalette, SupportedColor
 import voluptuous as vol
 
 from homeassistant import config_entries
@@ -21,6 +22,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_USERNAME
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers import selector
 
 from .const import (
     CONF_BASE_URL,
@@ -40,6 +42,7 @@ from .const import (
     DEVICE_MAP_LIST,
     DEVICE_MAP_OPTIONS,
     DOMAIN,
+    DRAWABLE_COLORS,
     DRAWABLES,
     IMAGE_CONFIG,
     MAPS,
@@ -380,7 +383,9 @@ class RoborockOptionsFlowHandler(config_entries.OptionsFlowWithConfigEntry):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Open the menu for the map options."""
-        return self.async_show_menu(step_id=MAPS, menu_options=[DRAWABLES, SIZES])
+        return self.async_show_menu(
+            step_id=MAPS, menu_options=[DRAWABLES, DRAWABLE_COLORS, SIZES]
+        )
 
     async def async_step_sizes(
         self, user_input: dict[str, Any] | None = None
@@ -422,6 +427,64 @@ class RoborockOptionsFlowHandler(config_entries.OptionsFlowWithConfigEntry):
         return self.async_show_form(
             step_id=DRAWABLES,
             data_schema=vol.Schema(data_schema),
+        )
+
+    def restore_alpha(self, name: SupportedColor, color: list):
+        """Restores the alpha, if any, from the default color.
+
+        Because Home Assistant doesn't offer an RGBA color selector, we hard-code alpha values from the defaults.
+        """
+        current_config = self.config_entry.options.get(DRAWABLE_COLORS, {})
+        current_color = current_config.get(name, ColorsPalette().COLORS[name])
+        if len(current_color) == 3:
+            return tuple(color)
+        return (*color, current_color[3])
+
+    async def async_step_drawable_colors(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Manage the map object drawable options."""
+        if user_input is not None:
+            return self.update_config_entry_from_user_input(
+                DRAWABLE_COLORS,
+                # The validation system gives us lists, but the API accepts tuples.
+                {
+                    name: self.restore_alpha(SupportedColor(name), color)
+                    for name, color in user_input.items()
+                },
+            )
+
+        drawable_config = self.config_entry.options.get(DRAWABLES, {})
+
+        enabled_drawables: dict[str, bool] = {
+            # Pluralization is inconsistent between Drawable and SupportedColor, so strip all 's's.
+            drawable.replace("s", ""): drawable_config.get(drawable, default_value)
+            for drawable, default_value in DEFAULT_DRAWABLES.items()
+        }
+
+        current_config = self.config_entry.options.get(DRAWABLE_COLORS, {})
+        return self.async_show_form(
+            step_id=DRAWABLE_COLORS,
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
+                        str(name),
+                        # Home Assistant doesn't support alpha in colors, so drop the alpha.
+                        default=list(current_config.get(name, default_color))[0:3],
+                    ): selector.ColorRGBSelector()
+                    for name, default_color in ColorsPalette().COLORS.items()
+                    # Hide colors if their drawables are unchecked.
+                    # Not all colors correspond to drawables, so default to true.
+                    if enabled_drawables.get(
+                        str(name)
+                        .replace("color_", "")
+                        .replace("_mop_", "_mopping_")
+                        .replace("_outline", "")
+                        .replace("s", ""),
+                        True,
+                    )
+                }
+            ),
         )
 
     def update_config_entry_from_user_input(
