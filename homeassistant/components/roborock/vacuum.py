@@ -1,4 +1,5 @@
 """Support for Roborock vacuum class."""
+
 from typing import Any
 
 from roborock.code_mappings import RoborockStateCode
@@ -16,7 +17,7 @@ from homeassistant.components.vacuum import (
     VacuumEntityFeature,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceResponse
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import slugify
 
@@ -160,6 +161,6 @@ class RoborockVacuum(RoborockCoordinatedEntity, StateVacuumEntity):
         command: str,
         params: dict[str, Any] | list[Any] | None = None,
         **kwargs: Any,
-    ) -> None:
+    ) -> ServiceResponse:
         """Send a command to a vacuum cleaner."""
-        await self.send(command, params)
+        return await self.send(command, params)
