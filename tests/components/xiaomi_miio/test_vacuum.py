@@ -1,4 +1,5 @@
 """The tests for the Xiaomi vacuum platform."""
+
 from datetime import datetime, time, timedelta
 from unittest import mock
 from unittest.mock import MagicMock, patch
@@ -331,7 +332,7 @@ async def test_xiaomi_vacuum_services(
         blocking=True,
     )
     mock_mirobo_is_got_error.assert_has_calls(
-        [mock.call.raw_command("raw", None)], any_order=True
+        [mock.call.send("raw", None)], any_order=True
     )
     mock_mirobo_is_got_error.assert_has_calls(STATUS_CALLS, any_order=True)
     mock_mirobo_is_got_error.reset_mock()
@@ -343,7 +344,7 @@ async def test_xiaomi_vacuum_services(
         blocking=True,
     )
     mock_mirobo_is_got_error.assert_has_calls(
-        [mock.call.raw_command("raw", {"k1": 2})], any_order=True
+        [mock.call.send("raw", {"k1": 2})], any_order=True
     )
     mock_mirobo_is_got_error.assert_has_calls(STATUS_CALLS, any_order=True)
     mock_mirobo_is_got_error.reset_mock()

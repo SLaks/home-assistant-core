@@ -1,4 +1,5 @@
 """Support for the Xiaomi vacuum cleaner robot."""
+
 from __future__ import annotations
 
 from functools import partial
@@ -20,7 +21,7 @@ from homeassistant.components.vacuum import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_DEVICE
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant, ServiceResponse, callback
 from homeassistant.helpers import config_validation as cv, entity_platform
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
@@ -336,14 +337,13 @@ class MiroboVacuum(
         command: str,
         params: dict[str, Any] | list[Any] | None = None,
         **kwargs: Any,
-    ) -> None:
+    ) -> ServiceResponse:
         """Send raw command."""
-        await self._try_command(
-            "Unable to send command to the vacuum: %s",
-            self._device.raw_command,
-            command,
-            params,
+        result = await self.hass.async_add_executor_job(
+            self._device.send, command, params
         )
+        await self.coordinator.async_refresh()
+        return result
 
     async def async_remote_control_start(self) -> None:
         """Start remote control mode."""
