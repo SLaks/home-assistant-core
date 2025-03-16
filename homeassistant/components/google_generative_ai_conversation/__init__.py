@@ -6,6 +6,7 @@ from pathlib import Path
 
 from google.genai import Client
 from google.genai.errors import APIError, ClientError
+from google.genai.types import GenerateContentConfig
 from requests.exceptions import Timeout
 import voluptuous as vol
 
@@ -89,7 +90,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
         try:
             response = await client.aio.models.generate_content(
-                model=RECOMMENDED_CHAT_MODEL, contents=prompt_parts
+                model=RECOMMENDED_CHAT_MODEL,
+                contents=prompt_parts,
+                config=GenerateContentConfig(response_modalities=["Text", "Image"]),
             )
         except (
             APIError,
@@ -109,7 +112,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         ):
             raise HomeAssistantError("Unknown error generating content")
 
-        return {"text": response.text}
+        return {
+            "text": response.text,
+            "parts": [p.model_dump() for p in response.candidates[0].content.parts],
+        }
 
     hass.services.async_register(
         DOMAIN,
